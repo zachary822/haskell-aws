@@ -29,14 +29,15 @@ main = do
           }
 
   now <- getCurrentTime
-  initReq <- parseRequest "https://sts.amazonaws.com/?Version=2011-06-15&Action=GetCallerIdentity"
+  initReq <- parseRequest "https://sts.amazonaws.com/"
 
   let req =
         initReq
-          { method = "GET",
-            requestBody = "",
+          { method = "POST",
+            requestBody = "Version=2011-06-15&Action=GetCallerIdentity",
             requestHeaders =
-              [ ("Accept", "application/json")
+              [ ("Accept", "application/json"),
+                ("Content-Type", "application/x-www-form-urlencoded")
               ]
           }
       authReq = authenticateRequest req now creds "sts"

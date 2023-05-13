@@ -14,7 +14,7 @@ import Data.Ord (comparing)
 import Data.Time.Clock (UTCTime)
 import Data.Time.Format (defaultTimeLocale, formatTime)
 import Network.HTTP.Conduit
-import Network.HTTP.Simple (Header, getRequestQueryString)
+import Network.HTTP.Simple (Header, getRequestQueryString, addRequestHeader)
 import Network.HTTP.Types.URI (urlEncode)
 
 data AWSCredentials = AWSCredentials
@@ -134,14 +134,14 @@ v4Signature derivedKey payLoad = Base16.encode $ hmacSHA256 derivedKey payLoad
 
 authenticateRequest :: Request -> UTCTime -> AWSCredentials -> String -> Request
 authenticateRequest req now creds service =
-  req
+  datedReq
     { requestHeaders =
-        ("x-amz-date", C.pack $ formatAmzDate now)
-          : authHeader now (C.pack $ awsAccessKeyId creds) (signedHeaders req) sig (C.pack $ awsRegion creds) bservice
-          : requestHeaders req
+        authHeader now (C.pack $ awsAccessKeyId creds) (signedHeaders datedReq) sig (C.pack $ awsRegion creds) bservice
+          : requestHeaders datedReq
     }
   where
-    canReq = canonicalRequest req
+    datedReq = addRequestHeader "x-amz-date" (C.pack $ formatAmzDate now) req
+    canReq = canonicalRequest datedReq
     bservice = C.pack service
     sig = createSignature canReq now (C.pack $ awsSecretAccessKey creds) (C.pack $ awsRegion creds) bservice
 
