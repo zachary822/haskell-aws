@@ -58,7 +58,7 @@ library
     import:           warnings
 
     -- Modules exported by the library.
-    exposed-modules:  MyLib
+    exposed-modules:  AWS
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -67,7 +67,16 @@ library
     -- other-extensions:
 
     -- Other library packages from which modules are imported.
-    build-depends:    base ^>=4.16.4.0
+    build-depends:    base ^>=4.16.4.0,
+                      cryptonite,
+                      text,
+                      bytestring,
+                      case-insensitive,
+                      memory,
+                      base16-bytestring,
+                      http-types,
+                      http-conduit,
+                      time
 
     -- Directories containing source files.
     hs-source-dirs:   src
@@ -93,13 +102,7 @@ executable haskell-aws
         base ^>=4.16.4.0,
         haskell-aws,
         http-conduit,
-        cryptonite,
-        text,
-        bytestring,
-        case-insensitive,
-        memory,
-        time,
-        base16-bytestring
+        time
 
     -- Directories containing source files.
     hs-source-dirs:   app
@@ -132,4 +135,4 @@ test-suite haskell-aws-test
     -- Test dependencies.
     build-depends:
         base ^>=4.16.4.0,
-        haskell-aws
+        haskell-aws,
