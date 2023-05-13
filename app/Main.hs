@@ -2,7 +2,7 @@
 
 module Main where
 
-import AWS
+import AWS.Auth
   ( AWSCredentials
       ( AWSCredentials,
         awsAccessKeyId,

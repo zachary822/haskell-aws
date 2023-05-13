@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module AWS where
+module AWS.Auth where
 
 import Crypto.Hash (Digest, SHA256, hash)
 import Crypto.MAC.HMAC (hmac, hmacGetDigest)
@@ -112,8 +112,8 @@ formatAmzDate :: UTCTime -> String
 formatAmzDate = formatTime defaultTimeLocale "%Y%m%dT%H%M%SZ"
 
 createSignature ::
-  -- | Http request
-  Request ->
+  -- | Canonical Request
+  ByteString ->
   -- | Current time
   UTCTime ->
   -- | Secret Access Key
@@ -123,10 +123,10 @@ createSignature ::
   -- | AWS service
   ByteString ->
   ByteString
-createSignature req now key region service = v4Signature dKey toSign
+createSignature canReq now key region service = v4Signature dKey toSign
   where
-    canReqHash = hexHash $ canonicalRequest req
-    toSign = stringToSign now region service canReqHash
+    canonicalReqHash = hexHash canReq
+    toSign = stringToSign now region service canonicalReqHash
     dKey = v4DerivedKey key (C.pack $ formatDate now) region service
 
 v4Signature :: ByteString -> ByteString -> ByteString
@@ -141,8 +141,9 @@ authenticateRequest req now creds service =
           : requestHeaders req
     }
   where
+    canReq = canonicalRequest req
     bservice = C.pack service
-    sig = createSignature req now (C.pack $ awsSecretAccessKey creds) (C.pack $ awsRegion creds) bservice
+    sig = createSignature canReq now (C.pack $ awsSecretAccessKey creds) (C.pack $ awsRegion creds) bservice
 
 authHeader ::
   -- | Current time
