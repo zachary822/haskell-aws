@@ -67,7 +67,7 @@ library
     -- other-extensions:
 
     -- Other library packages from which modules are imported.
-    build-depends:    base ^>=4.16.4.0,
+    build-depends:    base >=4.16.4.0 && <5,
                       cryptonite,
                       text,
                       bytestring,
@@ -99,7 +99,7 @@ executable haskell-aws
 
     -- Other library packages from which modules are imported.
     build-depends:
-        base ^>=4.16.4.0,
+        base >=4.16.4.0 && <5,
         haskell-aws,
         http-conduit,
         time
@@ -134,5 +134,5 @@ test-suite haskell-aws-test
 
     -- Test dependencies.
     build-depends:
-        base ^>=4.16.4.0,
+        base >=4.16.4.0 && <5,
         haskell-aws,
