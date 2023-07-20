@@ -48,15 +48,8 @@ getConfigAwsSecret profile (_, credentials) =
 
 loadConfig :: Maybe String -> IO AWSCredentials
 loadConfig profile = do
-  configs <- runExceptT loadConfigFiles >>= either fail return
-
-  region <- getRegion profile configs
-  awsId <- getAwsId profile configs
-  awsSecret <- getAwsSecret profile configs
-
-  return
-    AWSCredentials
-      { awsRegion = region
-      , awsAccessKeyId = awsId
-      , awsSecretAccessKey = awsSecret
-      }
+  configs <- either fail return =<< runExceptT loadConfigFiles
+  AWSCredentials
+    <$> getRegion profile configs
+    <*> getAwsId profile configs
+    <*> getAwsSecret profile configs
