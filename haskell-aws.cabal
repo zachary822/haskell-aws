@@ -58,7 +58,8 @@ library
     import:           warnings
 
     -- Modules exported by the library.
-    exposed-modules:  AWS.Auth
+    exposed-modules:  AWS.Auth,
+                      AWS.Config
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -73,10 +74,12 @@ library
                       bytestring,
                       case-insensitive,
                       memory,
-                      base16-bytestring,
                       http-types,
                       http-conduit,
-                      time
+                      time,
+                      transformers,
+                      directory,
+                      ini
 
     -- Directories containing source files.
     hs-source-dirs:   src
