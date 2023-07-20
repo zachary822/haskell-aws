@@ -8,10 +8,11 @@ import Data.Time (getCurrentTime)
 import Network.HTTP.Conduit
 import Network.HTTP.Simple
 import System.Environment
+import Data.Text qualified as T
 
 main :: IO ()
 main = do
-  profile <- lookupEnv "AWS_PROFILE"
+  profile <- fmap T.pack <$> lookupEnv "AWS_PROFILE"
   creds <- loadConfig profile
 
   now <- getCurrentTime

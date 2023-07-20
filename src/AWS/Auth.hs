@@ -11,6 +11,8 @@ import Data.ByteString.Char8 qualified as C
 import Data.CaseInsensitive qualified as CI
 import Data.List (intersperse, sortBy)
 import Data.Ord (comparing)
+import Data.Text (Text)
+import Data.Text.Encoding (encodeUtf8)
 import Data.Time.Clock (UTCTime)
 import Data.Time.Format (defaultTimeLocale, formatTime)
 import Network.HTTP.Conduit
@@ -18,9 +20,9 @@ import Network.HTTP.Simple (Header, addRequestHeader, getRequestQueryString)
 import Network.HTTP.Types.URI (urlEncode)
 
 data AWSCredentials = AWSCredentials
-  { awsRegion :: String
-  , awsAccessKeyId :: String
-  , awsSecretAccessKey :: String
+  { awsRegion :: Text
+  , awsAccessKeyId :: Text
+  , awsSecretAccessKey :: Text
   }
   deriving (Show)
 
@@ -130,18 +132,21 @@ createSignature canReq now key region service = v4Signature dKey toSign
 v4Signature :: ByteString -> ByteString -> ByteString
 v4Signature derivedKey payLoad = convertToBase Base16 $ hmacSHA256 derivedKey payLoad
 
-authenticateRequest :: UTCTime -> AWSCredentials -> String -> Request -> Request
+authenticateRequest :: UTCTime -> AWSCredentials -> Text -> Request -> Request
 authenticateRequest now creds service req =
   datedReq
     { requestHeaders =
-        authHeader now (C.pack $ awsAccessKeyId creds) (signedHeaders datedReq) sig (C.pack $ awsRegion creds) bservice
+        authHeader now key (signedHeaders datedReq) sig region serv
           : requestHeaders datedReq
     }
  where
   datedReq = addRequestHeader "x-amz-date" (C.pack $ formatAmzDate now) req
   canReq = canonicalRequest datedReq
-  bservice = C.pack service
-  sig = createSignature canReq now (C.pack $ awsSecretAccessKey creds) (C.pack $ awsRegion creds) bservice
+  serv = encodeUtf8 service
+  region = (encodeUtf8 $ awsRegion creds)
+  key = (encodeUtf8 $ awsAccessKeyId creds)
+  secret = (encodeUtf8 $ awsSecretAccessKey creds)
+  sig = createSignature canReq now secret region serv
 
 authHeader ::
   -- | Current time
@@ -175,8 +180,9 @@ authHeader now sId signHeads sig region service =
       ]
   )
 
+formatQueryParam :: (ByteString, Maybe ByteString) -> ByteString
+formatQueryParam (key, Just value) = key <> "=" <> urlEncode True value
+formatQueryParam (key, Nothing) = key <> "="
+
 canonicalQueryString :: Request -> ByteString
 canonicalQueryString req = C.concat . intersperse "&" . map formatQueryParam . sortBy (comparing fst) $ getRequestQueryString req
- where
-  formatQueryParam (key, Just value) = key <> "=" <> urlEncode True value
-  formatQueryParam (key, Nothing) = key <> "="

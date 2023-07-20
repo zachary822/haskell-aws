@@ -1,14 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module AWS.Config where
+module AWS.Config (loadConfig) where
 
 import AWS.Auth
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Data.Ini
-import Data.Text qualified as T
+import Data.Text (Text, pack)
 import System.Directory
 import System.Environment
+import System.FilePath
+
+type Profile = Maybe Text
+
+lookupEnvText :: String -> IO (Maybe Text)
+lookupEnvText = fmap (fmap pack) . lookupEnv
 
 readConfigFile :: FilePath -> ExceptT String IO Ini
 readConfigFile = ExceptT . readIniFile
@@ -16,37 +22,37 @@ readConfigFile = ExceptT . readIniFile
 loadConfigFiles :: ExceptT String IO (Ini, Ini)
 loadConfigFiles = do
   homeDir <- lift getHomeDirectory
-  config <- readConfigFile (homeDir ++ "/.aws/config")
-  credentials <- readConfigFile (homeDir ++ "/.aws/credentials")
+  config <- readConfigFile (homeDir </> ".aws/config")
+  credentials <- readConfigFile (homeDir </> ".aws/credentials")
   return (config, credentials)
 
-getRegion :: Maybe String -> (Ini, Ini) -> IO String
+getRegion :: Profile -> (Ini, Ini) -> IO Text
 getRegion profile (config, _) =
-  lookupEnv "AWS_DEFAULT_REGION" >>= maybe (getConfigRegion profile config) return
+  lookupEnvText "AWS_DEFAULT_REGION" >>= maybe (getConfigRegion profile config) return
 
-getConfigRegion :: Maybe String -> Ini -> IO String
+getConfigRegion :: Profile -> Ini -> IO Text
 getConfigRegion profile config =
-  either fail (return . T.unpack) $ lookupValue (T.pack section) "region" config
+  either fail return $ lookupValue section "region" config
  where
   section = maybe "default" ("profile " <>) profile
 
-getAwsId :: Maybe String -> (Ini, Ini) -> IO String
+getAwsId :: Profile -> (Ini, Ini) -> IO Text
 getAwsId profile config =
-  lookupEnv "AWS_ACCESS_KEY_ID" >>= maybe (getConfigAwsId profile config) return
+  lookupEnvText "AWS_ACCESS_KEY_ID" >>= maybe (getConfigAwsId profile config) return
 
-getConfigAwsId :: Maybe String -> (Ini, Ini) -> IO String
+getConfigAwsId :: Profile -> (Ini, Ini) -> IO Text
 getConfigAwsId profile (_, credentials) =
-  either fail (return . T.unpack) $ lookupValue (maybe "default" T.pack profile) "aws_access_key_id" credentials
+  either fail return $ lookupValue (maybe "default" id profile) "aws_access_key_id" credentials
 
-getAwsSecret :: Maybe String -> (Ini, Ini) -> IO String
+getAwsSecret :: Profile -> (Ini, Ini) -> IO Text
 getAwsSecret profile config =
-  lookupEnv "AWS_SECRET_ACCESS_KEY" >>= maybe (getConfigAwsSecret profile config) return
+  lookupEnvText "AWS_SECRET_ACCESS_KEY" >>= maybe (getConfigAwsSecret profile config) return
 
-getConfigAwsSecret :: Maybe String -> (Ini, Ini) -> IO String
+getConfigAwsSecret :: Profile -> (Ini, Ini) -> IO Text
 getConfigAwsSecret profile (_, credentials) =
-  either fail (return . T.unpack) $ lookupValue (maybe "default" T.pack profile) "aws_secret_access_key" credentials
+  either fail return $ lookupValue (maybe "default" id profile) "aws_secret_access_key" credentials
 
-loadConfig :: Maybe String -> IO AWSCredentials
+loadConfig :: Profile -> IO AWSCredentials
 loadConfig profile = do
   configs <- either fail return =<< runExceptT loadConfigFiles
   AWSCredentials

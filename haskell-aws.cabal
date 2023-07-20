@@ -79,6 +79,7 @@ library
                       time,
                       transformers,
                       directory,
+                      filepath,
                       ini
 
     -- Directories containing source files.
@@ -105,6 +106,7 @@ executable haskell-aws
         base >=4.16.4.0 && <5,
         haskell-aws,
         http-conduit,
+        text,
         time
 
     -- Directories containing source files.
