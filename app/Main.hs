@@ -6,6 +6,7 @@ import AWS.Auth (authenticateRequest)
 import AWS.Config
 import Data.Time (getCurrentTime)
 import Network.HTTP.Conduit
+import Network.HTTP.Simple
 import System.Environment
 
 main :: IO ()
@@ -17,16 +18,18 @@ main = do
   initReq <- parseRequest "https://sts.amazonaws.com/"
 
   let req =
-        initReq
-          { method = "POST"
-          , requestBody = "Version=2011-06-15&Action=GetCallerIdentity"
-          , requestHeaders =
-              [ ("Accept", "application/json")
-              , ("Content-Type", "application/x-www-form-urlencoded")
-              ]
-          }
-      authReq = authenticateRequest req now creds "sts"
+        authenticateRequest
+          now
+          creds
+          "sts"
+          initReq
+            { method = "POST"
+            , requestBody = "Version=2011-06-15&Action=GetCallerIdentity"
+            , requestHeaders =
+                [ ("Accept", "application/json")
+                , ("Content-Type", "application/x-www-form-urlencoded")
+                ]
+            }
 
-  manager <- newManager tlsManagerSettings
-  resp <- httpLbs authReq manager
+  resp <- httpLBS req
   print resp

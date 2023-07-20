@@ -130,8 +130,8 @@ createSignature canReq now key region service = v4Signature dKey toSign
 v4Signature :: ByteString -> ByteString -> ByteString
 v4Signature derivedKey payLoad = convertToBase Base16 $ hmacSHA256 derivedKey payLoad
 
-authenticateRequest :: Request -> UTCTime -> AWSCredentials -> String -> Request
-authenticateRequest req now creds service =
+authenticateRequest :: UTCTime -> AWSCredentials -> String -> Request -> Request
+authenticateRequest now creds service req =
   datedReq
     { requestHeaders =
         authHeader now (C.pack $ awsAccessKeyId creds) (signedHeaders datedReq) sig (C.pack $ awsRegion creds) bservice
