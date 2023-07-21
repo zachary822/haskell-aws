@@ -4,7 +4,7 @@ module AWS.Auth where
 
 import Crypto.Hash (Digest, SHA256, hash)
 import Crypto.MAC.HMAC (hmac, hmacGetDigest)
-import Data.ByteArray (convert)
+import Data.ByteArray (ByteArrayAccess)
 import Data.ByteArray.Encoding (Base (Base16), convertToBase)
 import Data.ByteString as B (ByteString, toStrict)
 import Data.ByteString.Char8 qualified as C
@@ -25,6 +25,9 @@ data AWSCredentials = AWSCredentials
   , awsSecretAccessKey :: Text
   }
   deriving (Show)
+
+awsHmacSha256 :: ByteString
+awsHmacSha256 = "AWS4-HMAC-SHA256"
 
 getBody :: Request -> ByteString
 getBody req =
@@ -71,15 +74,15 @@ v4DerivedKey ::
   ByteString ->
   -- | AWS service
   ByteString ->
-  ByteString
-v4DerivedKey secretAccessKey date region service = hmacSHA256 kService "aws4_request"
+  Digest SHA256
+v4DerivedKey secretAccessKey date region service = hmacSHA256 kService ("aws4_request" :: ByteString)
  where
   kDate = hmacSHA256 ("AWS4" <> secretAccessKey) date
   kRegion = hmacSHA256 kDate region
   kService = hmacSHA256 kRegion service
 
-hmacSHA256 :: ByteString -> ByteString -> ByteString
-hmacSHA256 key p = convert (hmacGetDigest $ hmac key p :: Digest SHA256)
+hmacSHA256 :: (ByteArrayAccess k, ByteArrayAccess m) => k -> m -> Digest SHA256
+hmacSHA256 key p = hmacGetDigest $ hmac key p
 
 stringToSign ::
   -- | current time
@@ -93,7 +96,8 @@ stringToSign ::
   ByteString
 stringToSign date region service hashConReq =
   C.concat
-    [ "AWS4-HMAC-SHA256\n"
+    [ awsHmacSha256
+    , "\n"
     , C.pack (formatAmzDate date)
     , "\n"
     , C.pack (formatDate date)
@@ -129,7 +133,7 @@ createSignature canReq now key region service = v4Signature dKey toSign
   toSign = stringToSign now region service canonicalReqHash
   dKey = v4DerivedKey key (C.pack $ formatDate now) region service
 
-v4Signature :: ByteString -> ByteString -> ByteString
+v4Signature :: (ByteArrayAccess k, ByteArrayAccess m) => k -> m -> ByteString
 v4Signature derivedKey payLoad = convertToBase Base16 $ hmacSHA256 derivedKey payLoad
 
 authenticateRequest :: UTCTime -> AWSCredentials -> Text -> Request -> Request
@@ -165,7 +169,8 @@ authHeader ::
 authHeader now sId signHeads sig region service =
   ( "Authorization"
   , C.concat
-      [ "AWS4-HMAC-SHA256 Credential="
+      [ awsHmacSha256
+      , " Credential="
       , sId
       , "/"
       , C.pack (formatDate now)
