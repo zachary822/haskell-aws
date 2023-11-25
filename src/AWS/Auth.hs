@@ -36,8 +36,8 @@ getBody req =
     RequestBodyLBS b -> B.toStrict b
     _ -> error "not supported"
 
-canonicalRequest :: Request -> ByteString
-canonicalRequest req =
+canonicalRequest :: Bool -> Request -> ByteString
+canonicalRequest signed req =
   C.concat $
     intersperse
       "\n"
@@ -46,7 +46,7 @@ canonicalRequest req =
       , canonicalQueryString req
       , canonicalHeaders req
       , signedHeaders req
-      , hexHash (getBody req)
+      , if signed then hexHash (getBody req) else "UNSIGNED-PAYLOAD"
       ]
 
 headers :: Request -> [Header]
@@ -136,26 +136,36 @@ createSignature canReq now key region service = v4Signature dKey toSign
 v4Signature :: (ByteArrayAccess k, ByteArrayAccess m) => k -> m -> ByteString
 v4Signature derivedKey payLoad = convertToBase Base16 $ hmacSHA256 derivedKey payLoad
 
-authenticateRequest' :: UTCTime -> AWSCredentials -> Text -> Request -> Request
-authenticateRequest' now creds service req =
+authenticateRequest' :: UTCTime -> AWSCredentials -> Text -> Bool -> Request -> Request
+authenticateRequest' now creds service signed req =
   datedReq
     { requestHeaders =
-        authHeader now key (signedHeaders datedReq) sig region serv
-          : requestHeaders datedReq
+        if not signed
+          then ("x-amz-content-sha256", "UNSIGNED-PAYLOAD") : hs
+          else hs
     }
  where
-  datedReq = addRequestHeader "x-amz-date" (C.pack $ formatAmzDate now) req
-  canReq = canonicalRequest datedReq
+  hs =
+    authHeader now key (signedHeaders datedReq) sig region serv
+      : requestHeaders datedReq
+  datedReq =
+    ( if signed
+        then addRequestHeader "x-amz-content-sha256" (hexHash . getBody $ req)
+        else id
+    )
+      . addRequestHeader "x-amz-date" (C.pack $ formatAmzDate now)
+      $ req
+  canReq = canonicalRequest signed datedReq
   serv = encodeUtf8 service
   region = encodeUtf8 $ awsRegion creds
   key = encodeUtf8 $ awsAccessKeyId creds
   secret = encodeUtf8 $ awsSecretAccessKey creds
   sig = createSignature canReq now secret region serv
 
-authenticateRequest :: AWSCredentials -> Text -> Request -> IO Request
-authenticateRequest creds service req = do
+authenticateRequest :: AWSCredentials -> Text -> Bool -> Request -> IO Request
+authenticateRequest creds service signed req = do
   now <- getCurrentTime
-  return $ authenticateRequest' now creds service req
+  return $ authenticateRequest' now creds service signed req
 
 authHeader ::
   -- | Current time

@@ -106,6 +106,7 @@ executable haskell-aws
         base >=4.16.4.0 && <5,
         haskell-aws,
         http-conduit,
+        http-client,
         text,
         time
 

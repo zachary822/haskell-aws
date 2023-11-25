@@ -11,7 +11,7 @@ import System.Environment
 
 main :: IO ()
 main = do
-  profile <- fmap T.pack <$> lookupEnv "AWS_PROFILE"
+  profile <- (T.pack <$>) <$> lookupEnv "AWS_PROFILE"
   creds <- loadConfig profile
 
   initReq <- parseRequest "https://sts.amazonaws.com/"
@@ -20,6 +20,7 @@ main = do
     authenticateRequest
       creds
       "sts"
+      True
       initReq
         { method = "POST"
         , requestBody = "Version=2011-06-15&Action=GetCallerIdentity"
