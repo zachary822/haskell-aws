@@ -6,6 +6,7 @@ import AWS.Auth
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
 import Data.Ini
+import Data.Maybe
 import Data.Text (Text, pack)
 import System.Directory
 import System.Environment
@@ -34,7 +35,7 @@ getConfigRegion :: Profile -> Ini -> IO Text
 getConfigRegion profile config =
   either fail return $ lookupValue section "region" config
  where
-  section = maybe "default" ("profile " <>) profile
+  section = "profile " <> fromMaybe "default" profile
 
 getAwsId :: Profile -> (Ini, Ini) -> IO Text
 getAwsId profile config =
@@ -42,7 +43,7 @@ getAwsId profile config =
 
 getConfigAwsId :: Profile -> (Ini, Ini) -> IO Text
 getConfigAwsId profile (_, credentials) =
-  either fail return $ lookupValue (maybe "default" id profile) "aws_access_key_id" credentials
+  either fail return $ lookupValue (fromMaybe "default" profile) "aws_access_key_id" credentials
 
 getAwsSecret :: Profile -> (Ini, Ini) -> IO Text
 getAwsSecret profile config =
@@ -50,7 +51,7 @@ getAwsSecret profile config =
 
 getConfigAwsSecret :: Profile -> (Ini, Ini) -> IO Text
 getConfigAwsSecret profile (_, credentials) =
-  either fail return $ lookupValue (maybe "default" id profile) "aws_secret_access_key" credentials
+  either fail return $ lookupValue (fromMaybe "default" profile) "aws_secret_access_key" credentials
 
 loadConfig :: Profile -> IO AWSCredentials
 loadConfig profile = do

@@ -13,7 +13,7 @@ import Data.List (intersperse, sortBy)
 import Data.Ord (comparing)
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
-import Data.Time.Clock (UTCTime)
+import Data.Time.Clock (UTCTime, getCurrentTime)
 import Data.Time.Format (defaultTimeLocale, formatTime)
 import Network.HTTP.Conduit
 import Network.HTTP.Simple (Header, addRequestHeader, getRequestQueryString)
@@ -59,7 +59,7 @@ canonicalHeaders req =
   prepareHeader (name, value) = CI.foldCase (CI.original name) <> ":" <> value <> "\n"
 
 hexHash :: ByteString -> ByteString
-hexHash p = convertToBase Base16 $ (hash p :: Digest SHA256)
+hexHash p = convertToBase Base16 (hash p :: Digest SHA256)
 
 signedHeaders :: Request -> ByteString
 signedHeaders req =
@@ -136,8 +136,8 @@ createSignature canReq now key region service = v4Signature dKey toSign
 v4Signature :: (ByteArrayAccess k, ByteArrayAccess m) => k -> m -> ByteString
 v4Signature derivedKey payLoad = convertToBase Base16 $ hmacSHA256 derivedKey payLoad
 
-authenticateRequest :: UTCTime -> AWSCredentials -> Text -> Request -> Request
-authenticateRequest now creds service req =
+authenticateRequest' :: UTCTime -> AWSCredentials -> Text -> Request -> Request
+authenticateRequest' now creds service req =
   datedReq
     { requestHeaders =
         authHeader now key (signedHeaders datedReq) sig region serv
@@ -147,10 +147,15 @@ authenticateRequest now creds service req =
   datedReq = addRequestHeader "x-amz-date" (C.pack $ formatAmzDate now) req
   canReq = canonicalRequest datedReq
   serv = encodeUtf8 service
-  region = (encodeUtf8 $ awsRegion creds)
-  key = (encodeUtf8 $ awsAccessKeyId creds)
-  secret = (encodeUtf8 $ awsSecretAccessKey creds)
+  region = encodeUtf8 $ awsRegion creds
+  key = encodeUtf8 $ awsAccessKeyId creds
+  secret = encodeUtf8 $ awsSecretAccessKey creds
   sig = createSignature canReq now secret region serv
+
+authenticateRequest :: AWSCredentials -> Text -> Request -> IO Request
+authenticateRequest creds service req = do
+  now <- getCurrentTime
+  return $ authenticateRequest' now creds service req
 
 authHeader ::
   -- | Current time
