@@ -59,7 +59,8 @@ library
 
     -- Modules exported by the library.
     exposed-modules:  AWS.Auth,
-                      AWS.Config
+                      AWS.Config,
+                      AWS.S3
 
     -- Modules included in this library but not exported.
     -- other-modules:

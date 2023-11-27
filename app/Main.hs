@@ -31,4 +31,5 @@ main = do
         }
 
   resp <- httpLBS req
+  print req
   print resp
