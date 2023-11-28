@@ -10,16 +10,13 @@ import Network.HTTP.Simple
 
 uploadS3 :: AWSCredentials -> String -> String -> FilePath -> IO (Response ByteString)
 uploadS3 creds bucket key path = do
-  req <-
-    setRequestMethod "PUT"
-      <$> parseRequest ("https://" <> bucket <> ".s3.amazonaws.com")
+  req <- parseRequest ("https://" <> bucket <> ".s3.amazonaws.com")
 
   httpLBS
     =<< ( authenticateRequest creds "s3" False
+            . addRequestHeader "Content-Type" "multipart/form-data"
             . setRequestPath ("/" <> fromString key)
             . setRequestBodyFile path
+            . setRequestMethod "PUT"
         )
       req
-        { method = "PUT"
-        , requestHeaders = ("Content-Type", "multipart/form-data") : requestHeaders req
-        }
