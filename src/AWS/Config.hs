@@ -15,22 +15,23 @@ import System.Environment
 import System.FilePath
 
 type Profile = Maybe Text
+type ConfigFiles = (Ini, Ini)
 
 lookupEnvText :: String -> MaybeT IO Text
-lookupEnvText e = (lift (lookupEnv e) >>= hoistMaybe) <&> pack
+lookupEnvText e = lift (lookupEnv e) >>= hoistMaybe <&> pack
 
 readConfigFile :: FilePath -> ExceptT String IO Ini
 readConfigFile = ExceptT . readIniFile
 
-loadConfigFiles :: ExceptT String IO (Ini, Ini)
+loadConfigFiles :: ExceptT String IO ConfigFiles
 loadConfigFiles = do
   homeDir <- lift getHomeDirectory
   config <- readConfigFile (homeDir </> ".aws/config")
   credentials <- readConfigFile (homeDir </> ".aws/credentials")
   return (config, credentials)
 
-getRegion :: Profile -> (Ini, Ini) -> IO Text
-getRegion profile (config, _) = do
+getRegion :: Profile -> ConfigFiles -> IO Text
+getRegion profile (config, _) =
   runMaybeT (lookupEnvText "AWS_DEFAULT_REGION") >>= maybe (getConfigRegion profile config) return
 
 getConfigRegion :: Profile -> Ini -> IO Text
