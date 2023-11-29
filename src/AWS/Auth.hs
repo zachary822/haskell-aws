@@ -9,7 +9,7 @@ import Data.ByteArray.Encoding (Base (Base16), convertToBase)
 import Data.ByteString as B (ByteString, toStrict)
 import Data.ByteString.Char8 qualified as C
 import Data.CaseInsensitive qualified as CI
-import Data.List (intersperse, sortBy)
+import Data.List (sortBy)
 import Data.Ord (comparing)
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
@@ -38,16 +38,15 @@ getBody req =
 
 canonicalRequest :: Bool -> Request -> ByteString
 canonicalRequest signed req =
-  C.concat $
-    intersperse
-      "\n"
-      [ method req
-      , path req
-      , canonicalQueryString req
-      , canonicalHeaders req
-      , signedHeaders req
-      , if signed then hexHash (getBody req) else "UNSIGNED-PAYLOAD"
-      ]
+  C.intercalate
+    "\n"
+    [ method req
+    , path req
+    , canonicalQueryString req
+    , canonicalHeaders req
+    , signedHeaders req
+    , if signed then hexHash (getBody req) else "UNSIGNED-PAYLOAD"
+    ]
 
 headers :: Request -> [Header]
 headers req = sortBy (comparing fst) (("host", host req) : requestHeaders req)
@@ -63,7 +62,7 @@ hexHash p = convertToBase Base16 (hash p :: Digest SHA256)
 
 signedHeaders :: Request -> ByteString
 signedHeaders req =
-  C.concat . intersperse ";" . map (CI.foldCase . CI.original . fst) $ headers req
+  C.intercalate ";" . map (CI.foldCase . CI.original . fst) $ headers req
 
 v4DerivedKey ::
   -- | AWS Secret Access Key
@@ -205,4 +204,4 @@ formatQueryParam (key, Just value) = key <> "=" <> urlEncode True value
 formatQueryParam (key, Nothing) = key <> "="
 
 canonicalQueryString :: Request -> ByteString
-canonicalQueryString req = C.concat . intersperse "&" . map formatQueryParam . sortBy (comparing fst) $ getRequestQueryString req
+canonicalQueryString req = C.intercalate "&" . map formatQueryParam . sortBy (comparing fst) $ getRequestQueryString req
