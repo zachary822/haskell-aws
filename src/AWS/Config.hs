@@ -5,6 +5,8 @@ module AWS.Config (loadConfig) where
 import AWS.Auth
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
+import Control.Monad.Trans.Maybe
+import Data.Functor ((<&>))
 import Data.Ini
 import Data.Maybe
 import Data.Text (Text, pack)
@@ -14,8 +16,8 @@ import System.FilePath
 
 type Profile = Maybe Text
 
-lookupEnvText :: String -> IO (Maybe Text)
-lookupEnvText = fmap (fmap pack) . lookupEnv
+lookupEnvText :: String -> MaybeT IO Text
+lookupEnvText e = (lift (lookupEnv e) >>= hoistMaybe) <&> pack
 
 readConfigFile :: FilePath -> ExceptT String IO Ini
 readConfigFile = ExceptT . readIniFile
@@ -28,8 +30,8 @@ loadConfigFiles = do
   return (config, credentials)
 
 getRegion :: Profile -> (Ini, Ini) -> IO Text
-getRegion profile (config, _) =
-  lookupEnvText "AWS_DEFAULT_REGION" >>= maybe (getConfigRegion profile config) return
+getRegion profile (config, _) = do
+  runMaybeT (lookupEnvText "AWS_DEFAULT_REGION") >>= maybe (getConfigRegion profile config) return
 
 getConfigRegion :: Profile -> Ini -> IO Text
 getConfigRegion profile config =
@@ -39,7 +41,7 @@ getConfigRegion profile config =
 
 getAwsId :: Profile -> (Ini, Ini) -> IO Text
 getAwsId profile config =
-  lookupEnvText "AWS_ACCESS_KEY_ID" >>= maybe (getConfigAwsId profile config) return
+  runMaybeT (lookupEnvText "AWS_ACCESS_KEY_ID") >>= maybe (getConfigAwsId profile config) return
 
 getConfigAwsId :: Profile -> (Ini, Ini) -> IO Text
 getConfigAwsId profile (_, credentials) =
@@ -47,7 +49,7 @@ getConfigAwsId profile (_, credentials) =
 
 getAwsSecret :: Profile -> (Ini, Ini) -> IO Text
 getAwsSecret profile config =
-  lookupEnvText "AWS_SECRET_ACCESS_KEY" >>= maybe (getConfigAwsSecret profile config) return
+  runMaybeT (lookupEnvText "AWS_SECRET_ACCESS_KEY") >>= maybe (getConfigAwsSecret profile config) return
 
 getConfigAwsSecret :: Profile -> (Ini, Ini) -> IO Text
 getConfigAwsSecret profile (_, credentials) =
